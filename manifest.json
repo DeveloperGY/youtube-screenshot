@@ -27,7 +27,7 @@
   "permissions": ["storage", "downloads", "clipboardWrite", "notifications"],
   "browser_specific_settings": {
     "gecko": {
-      "id": "devgy_yt_screenshot"
+      "id": "@devgy.yt-screenshot"
     }
   }
 }
