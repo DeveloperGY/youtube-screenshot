@@ -31,7 +31,7 @@ captureScreenshot = function () {
   let video = document.querySelector("video[src]");
 
   if (video.mediaKeys != null) {
-    browser.runtime.sendMessage({cmd: "showProtectionError"});
+    browser.runtime.sendMessage({ cmd: "showProtectionError" });
     return;
   }
 
@@ -41,19 +41,23 @@ captureScreenshot = function () {
   canvas.height = parseInt(video.videoHeight);
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-  if (currentConfiguration.copyToClipboard)
-    copyToClipboard(canvas);
+  if (currentConfiguration.copyToClipboard) copyToClipboard(canvas);
 
-  if (currentConfiguration.downloadFile)
-    downloadFile(canvas, video);
-}
+  if (currentConfiguration.downloadFile) downloadFile(canvas, video);
+};
 
 function downloadFile(canvas, video) {
   canvas.toBlob((blob) => {
-    browser.runtime.sendMessage({cmd: "downloadFile", data: blob, filename: getFileName(video), saveAs: currentConfiguration.saveAsEnabled})
+    browser.runtime
+      .sendMessage({
+        cmd: "downloadFile",
+        data: blob,
+        filename: getFileName(video),
+        saveAs: currentConfiguration.saveAsEnabled,
+      })
       .then(() => logger("Successfully started download file"))
-      .catch(e => logger(`Failed to download file: ${e.message}`))
-    }, currentConfiguration.imageFormat);
+      .catch((e) => logger(`Failed to download file: ${e.message}`));
+  }, currentConfiguration.imageFormat);
 }
 
 function copyToClipboard(canvas) {
@@ -62,37 +66,36 @@ function copyToClipboard(canvas) {
   canvas.toBlob((blob) => {
     // Send the data to background script as navigator.clipboard.write()
     // is not yet supported by default on Firefox
-    browser.runtime.sendMessage({cmd: "copyToClipboard", data: blob})
+    browser.runtime
+      .sendMessage({ cmd: "copyToClipboard", data: blob })
       .then(() => logger("Successfully copied to clipboard"))
-      .catch(e => logger(`Failed to copy to clipboad: ${e.message}`))
-    }, "image/png");
+      .catch((e) => logger(`Failed to copy to clipboad: ${e.message}`));
+  }, "image/png");
 }
 
 function getFileName(video) {
   let timeString = "";
   const seconds = video.currentTime;
   let mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds - (mins * 60));
+  const secs = Math.floor(seconds - mins * 60);
 
   let s = secs.toString();
-  if (s.length == 1)
-    s = "0" + s;
+  if (s.length == 1) s = "0" + s;
 
   if (mins >= 60) {
     const hours = Math.floor(mins / 60);
-    mins -= (hours * 60);
+    mins -= hours * 60;
 
     let m = mins.toString();
-    if (m.length == 1)
-      m = "0" + m;
+    if (m.length == 1) m = "0" + m;
 
     timeString = `${hours}-${m}-${s}`;
   } else {
-    timeString += `0-`+`${mins}-${s}`;
+    timeString += `0-` + `${mins}-${s}`;
   }
 
   return `${window.document.title} - ${timeString}.${currentConfiguration.imageFormatExtension}`;
-};
+}
 
 function setShortsButtonStyle(btn) {
   btn.innerHTML = `
@@ -167,7 +170,7 @@ function addButtonOnPlayer(container, regularNotShorts) {
   logger(`Adding ${type} button event listener`);
   btn.removeEventListener("click", captureScreenshot);
   btn.addEventListener("click", captureScreenshot);
-};
+}
 
 function searchControls(element, regularCallback, shortsCallback) {
   const regularControlsSelector = "div.ytp-right-controls";
@@ -208,12 +211,10 @@ function waitForControls(regularCallback, shortsCallback) {
 
   const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
-      if (!mutation.addedNodes)
-        return;
+      if (!mutation.addedNodes) return;
 
       for (let element of mutation.addedNodes) {
-        if (element.nodeType != Node.ELEMENT_NODE)
-          continue;
+        if (element.nodeType != Node.ELEMENT_NODE) continue;
 
         searchControls(element, regularCallback, shortsCallback);
       }
@@ -236,11 +237,15 @@ async function loadConfiguration() {
 
   // Shortcut
   currentConfiguration.shortcutEnabled = result.shortcutEnabled ?? true;
-  logger(`${currentConfiguration.shortcutEnabled ? "Enabling" : "Disabling"} screenshot shortcut`);
+  logger(
+    `${currentConfiguration.shortcutEnabled ? "Enabling" : "Disabling"} screenshot shortcut`,
+  );
 
   // Save as
   currentConfiguration.saveAsEnabled = result.saveAsEnabled ?? false;
-  logger(`${currentConfiguration.saveAsEnabled ? "Enabling" : "Disabling"} save as download`);
+  logger(
+    `${currentConfiguration.saveAsEnabled ? "Enabling" : "Disabling"} save as download`,
+  );
 
   // Button action and image format
   if (result.screenshotAction === "clipboard") {
@@ -278,44 +283,45 @@ loadConfiguration().then(() => {
     },
     (shortsControls) => {
       addButtonOnPlayer(shortsControls, false);
-    }
+    },
   );
 });
 
 // Handle messages
-browser.runtime.onMessage.addListener(request => {
+browser.runtime.onMessage.addListener((request) => {
   logger("Received message from background script");
 
-  if (request.cmd === "reloadConfiguration")
-    loadConfiguration();
+  if (request.cmd === "reloadConfiguration") loadConfiguration();
 
   return Promise.resolve({});
 });
 
 // Handle shortcut
-document.addEventListener('keydown', e => {
+document.addEventListener("keydown", (e) => {
   if (!currentConfiguration.shortcutEnabled) {
     logger("Shortcut is disabled");
     return;
   }
 
   const tagName = e.target.tagName;
-  if (e.target.isContentEditable
-      || (tagName === "INPUT")
-      || (tagName === "SELECT")
-      || (tagName === "TEXTAREA")) {
-      return;
-    }
-
-  if (!e.shiftKey)
+  if (
+    e.target.isContentEditable ||
+    tagName === "INPUT" ||
+    tagName === "SELECT" ||
+    tagName === "TEXTAREA"
+  ) {
     return;
+  }
 
-  if ((e.key === 'a') || (e.key === 'A')) {
+  if (!e.shiftKey) return;
+
+  if (e.key === "a" || e.key === "A") {
     logger("Catching screenshot shortcut");
 
     // Simply search for the screenshot button and simulate click
-    let btn = document.querySelector("button.ytp-screenshot")
-              || document.querySelector("button.ytd-screenshot");
+    let btn =
+      document.querySelector("button.ytp-screenshot") ||
+      document.querySelector("button.ytd-screenshot");
 
     if (btn) {
       btn.click();

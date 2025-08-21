@@ -1,10 +1,13 @@
 const debugOnInput = document.querySelector("input[value=debugOn]");
-const actionClipboardInput = document.querySelector("input[value=actionClipboard]");
+const actionClipboardInput = document.querySelector(
+  "input[value=actionClipboard]",
+);
 const actionBothInput = document.querySelector("input[value=actionBoth]");
 const formatFieldset = document.querySelector("fieldset#format");
 const formatPngInput = document.querySelector("input[value=formatPng]");
 const shortcutOffInput = document.querySelector("input[value=shortcutOff]");
 const saveAsOnInput = document.querySelector("input[value=saveAsOn]");
+const notificationInput = document.querySelector("input[value=notifOn]");
 
 // Send message to active tabs to reload configuration
 async function sendReloadToTabs() {
@@ -20,14 +23,14 @@ async function sendReloadToTabs() {
 }
 
 async function saveOptions(e) {
+  // prevent the default handling of the click event
+  // that the browser does
   e.preventDefault();
 
   // Sceenshot action
   let screenshotAction = "file";
-  if (actionClipboardInput.checked)
-    screenshotAction = "clipboard";
-  else if (actionBothInput.checked)
-    screenshotAction = "both";
+  if (actionClipboardInput.checked) screenshotAction = "clipboard";
+  else if (actionBothInput.checked) screenshotAction = "both";
 
   await browser.storage.local.set({
     YouTubeScreenshotAddonisDebugModeOn: debugOnInput.checked,
@@ -35,66 +38,69 @@ async function saveOptions(e) {
     imageFormat: formatPngInput.checked ? "png" : "jpeg",
     shortcutEnabled: !shortcutOffInput.checked,
     saveAsEnabled: saveAsOnInput.checked,
+    notificationEnabled: notificationInput.checked,
   });
 
   await sendReloadToTabs();
 
   // In case the preferences are saved from popup,
   // just close this window
-  if (location.hash === '#popup')
-    window.close();
+  if (location.hash === "#popup") window.close();
 }
 
-function handleAction() {
+// Updates the extension ui to restrict nonsensical settings
+//
+// If the setting to copy to clipboard is set, then there is no reason
+// to allow modification to the format of the saved file as a file wont
+// be saved.
+function updateExtensionMenu() {
   if (actionClipboardInput.checked) {
+    // Disable the format selection as a file wont be saved
     formatFieldset.disabled = true;
+    // set format to png, as that is the format of the
+    // screenshot (presumably)
     formatPngInput.checked = true;
   } else {
+    // Enable the format selection
     formatFieldset.disabled = false;
   }
 }
 
 function restoreOptions() {
   document.querySelectorAll("fieldset#action input").forEach((input) => {
-    input.addEventListener("change", handleAction);
+    input.addEventListener("change", updateExtensionMenu);
   });
 
   browser.storage.local.get().then((value) => {
     // Debug mode
-    if (value.YouTubeScreenshotAddonisDebugModeOn)
-      debugOnInput.checked = true;
-    else
-      document.querySelector("input[value=debugOff]").checked = true;
+    if (value.YouTubeScreenshotAddonisDebugModeOn) debugOnInput.checked = true;
+    else document.querySelector("input[value=debugOff]").checked = true;
 
     // Screenshot action
     if (value.screenshotAction === "clipboard")
       actionClipboardInput.checked = true;
-    else if (value.screenshotAction == "both")
-      actionBothInput.checked = true;
-    else
-      document.querySelector("input[value=actionFile]").checked = true;
+    else if (value.screenshotAction == "both") actionBothInput.checked = true;
+    else document.querySelector("input[value=actionFile]").checked = true;
 
     // Image format
-    if (value.imageFormat === "png")
-      formatPngInput.checked = true;
-    else
-      document.querySelector("input[value=formatJpeg]").checked = true;
+    if (value.imageFormat === "png") formatPngInput.checked = true;
+    else document.querySelector("input[value=formatJpeg]").checked = true;
 
     // Shortcut
-    if (value.shortcutEnabled === false)
-      shortcutOffInput.checked = true
-    else
-      document.querySelector("input[value=shortcutOn]").checked = true;
+    if (value.shortcutEnabled === false) shortcutOffInput.checked = true;
+    else document.querySelector("input[value=shortcutOn]").checked = true;
 
     // Save as
-    if (value.saveAsEnabled === true)
-      saveAsOnInput.checked = true
-    else
-      document.querySelector("input[value=saveAsOff]").checked = true;
+    if (value.saveAsEnabled === true) saveAsOnInput.checked = true;
+    else document.querySelector("input[value=saveAsOff]").checked = true;
 
-    handleAction();
+    // Notification Enabler
+    if (value.notificationEnabled === true) notificationInput.checked = true;
+    else document.querySelector("input[value=notifOff]").checked = true;
+
+    updateExtensionMenu();
   });
 }
 
-document.addEventListener('DOMContentLoaded', restoreOptions);
+document.addEventListener("DOMContentLoaded", restoreOptions);
 document.querySelector("#save").addEventListener("click", saveOptions);

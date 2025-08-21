@@ -1,8 +1,14 @@
 function showNotification(message) {
-  browser.notifications.create({
-    type: "basic",
-    title: "Youtube Screenshot",
-    message: message,
+  let notifEnabled = browser.storage.local.get("notificationEnabled");
+
+  notifEnabled.then((data) => {
+    if (data.notificationEnabled) {
+      browser.notifications.create({
+        type: "basic",
+        title: "Youtube Screenshot",
+        message: message,
+      });
+    }
   });
 }
 
@@ -12,7 +18,7 @@ async function copyToClipboard(data) {
   showNotification("Screenshot successfully copied to clipboard.");
 }
 
-browser.runtime.onMessage.addListener(async request => {
+browser.runtime.onMessage.addListener(async (request) => {
   try {
     if (request.cmd === "downloadFile") {
       await browser.downloads.download({
@@ -29,7 +35,7 @@ browser.runtime.onMessage.addListener(async request => {
 
     // OK
     return {};
-  } catch(e) {
+  } catch (e) {
     throw e;
   }
 });
